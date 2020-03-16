@@ -9,7 +9,6 @@ from maze import Maze
 from neuron_models import ILif_3flr
 from plot_utils import raster_plot, v_plot
 
-#Surprise-based Reinforcement Learning in Spiking Neural Networks for tasks in volatile environment
 
 
 import os
