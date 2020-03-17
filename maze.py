@@ -1,3 +1,6 @@
+"""
+Created by Flavio Martinelli at 18:25 10/03/2020
+"""
 import numpy as np
 import numpy.random as rd
 import tensorflow as tf

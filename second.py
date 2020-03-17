@@ -1,3 +1,7 @@
+"""
+Created by Flavio Martinelli at 11:27 26/02/2020
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 

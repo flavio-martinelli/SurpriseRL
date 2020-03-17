@@ -1,3 +1,7 @@
+"""
+Created by Flavio Martinelli at 16:57 26/02/2020
+"""
+
 import tensorflow as tf
 import numpy as np
 

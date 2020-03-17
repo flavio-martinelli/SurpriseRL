@@ -1,3 +1,8 @@
+"""
+Created by Flavio Martinelli at 11:08 26/02/2020
+Inspired by https://github.com/IGITUGraz/LSNN-official
+"""
+
 import numpy as np
 import numpy.random as rd
 import tensorflow as tf
@@ -330,9 +335,12 @@ class ILif_3flr(keras.layers.AbstractRNNCell):
         # Compute update
         # TODO: to be tested
         # TODO: check with Martin the specific update details
-        pop_activity = tf.reduce_sum(self.fi_filter(inp_spike_current))
+        pop_activity = tf.reduce_sum(self.fi_filter(
+                       tf.reshape(inp_spike_current, [-1, 2, int(self.n_rec/2)])), axis=2)
+
         tan = tf.math.tanh(pop_activity)
         surprise_factor = self.eta1 * tan + self.eta2 * tan * tf.cast(pop_activity > self.theta, dtype=self.data_type)
+        surprise_factor = tf.repeat(surprise_factor, repeats=int(int(self.n_rec/2)))  # expand to dimension of n_rec
 
         # The input we need is only for the second population, zeroing inputs of first population to null their effect
         mask = tf.concat([tf.zeros([inputs.shape[0], int(inputs.shape[1]/2)]),
@@ -342,6 +350,7 @@ class ILif_3flr(keras.layers.AbstractRNNCell):
         # need to do outer product between inp_spike_curr and masked_input, consider using einsum bi,bk -> bik
         dw_ik = tf.einsum("bi,bk->ki", inp_spike_current, masked_input) * surprise_factor
         # TODO: consider that einsum performs summation over b (batches) which is not good
+        # TODO: note that dw_ik is non zero only in a specific row for Maze.self._low_freq_p = 0.0
 
         self.w_in.assign_add(dw_ik)
 
@@ -376,7 +385,7 @@ class ILif_3flr(keras.layers.AbstractRNNCell):
             new_z = tf.greater(new_v, self.thr)
             new_z = tf.cast(new_z, dtype=tf.float32)
 
-            new_z = new_z * 1 / self.dt # ask guillaume about dt
+            new_z = new_z * 1 / self.dt
 
         return new_v, new_i, new_z
 

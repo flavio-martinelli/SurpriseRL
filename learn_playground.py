@@ -1,3 +1,7 @@
+"""
+Created by Flavio Martinelli at 15:17 12/03/2020
+"""
+
 import numpy as np
 import tensorflow as tf
 import numpy.random as rd
@@ -9,13 +13,12 @@ from maze import Maze
 from neuron_models import ILif_3flr
 from plot_utils import raster_plot, v_plot
 
-
-
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+tf.config.experimental_run_functions_eagerly(True)
 
 t_steps = 100
-epochs = 10000
+epochs = 1
 
 # Initialize maze
 mz = Maze((4, 4))
@@ -27,9 +30,10 @@ n_pop = mz.tot_room_number*2
 dt = 1
 
 # Initialize network [two input sets of size n_in and two output populations of size n_pop]
-obs_m1 = mz.tot_room_number*(1./mz.tot_room_number) * np.kron(np.eye(n_in), np.ones([1, int(n_pop/n_in)]))  # Block identity matrix
-wm_m1 = 10 * rd.randn(n_in, n_pop) / np.sqrt(n_pop)
-full_w_in = np.block([[obs_m1, -obs_m1], [wm_m1, -wm_m1]])
+# Block identity matrix
+obs_m1 = (1./mz.tot_room_number) * np.kron(np.eye(n_in), np.ones([1, int(n_pop/n_in)]))
+wm_m1 = rd.uniform(0.0, 1.0, (n_in, n_pop))
+full_w_in = np.block([[obs_m1, -obs_m1], [-wm_m1, wm_m1]])
 
 cell = ILif_3flr(n_rec=n_pop*2, w_in=full_w_in, track_v_i=True)
 rnn = keras.layers.RNN(cell, return_sequences=True)
@@ -49,7 +53,7 @@ for e in tqdm(range(epochs), ):
 
 f, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 15))
 v_plot(ax1, v_out[0], out_spikes=spk_out[0].numpy(), linewidth=1, color='b')
-raster_plot(ax2, inputs[0], linewidth = 1)
+raster_plot(ax2, inputs[0], linewidth=1)
 ax1.xaxis.grid(linestyle='-.')  # vertical lines
 plt.show()
 
@@ -59,6 +63,12 @@ plt.show()
 
 _, ax = plt.subplots(1, 1)
 plt.pcolor(t_mat)
+plt.gca().invert_yaxis()
+plt.colorbar()
+plt.show()
+
+_, ax = plt.subplots(1, 1)
+plt.pcolor(full_w_in)
 plt.gca().invert_yaxis()
 plt.colorbar()
 plt.show()

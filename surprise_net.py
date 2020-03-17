@@ -1,3 +1,7 @@
+"""
+Created by Flavio Martinelli at 10:23 09/03/2020
+"""
+
 import numpy as np
 import tensorflow as tf
 import numpy.random as rd
@@ -34,7 +38,7 @@ plt.gca().invert_yaxis()
 plt.colorbar()
 plt.show()
 
-for i in range(200):
+for i in range(5):
 
     # Generate spike train for current position
     spk_train = mz.generate_spike_train(mz.current_pos)
