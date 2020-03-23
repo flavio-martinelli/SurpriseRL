@@ -335,17 +335,16 @@ class ILif_3flr(keras.layers.AbstractRNNCell):
         # Compute update
         # TODO: to be tested
         # TODO: check with Martin the specific update details
-        pop_activity = tf.reduce_sum(self.fi_filter(
-                       tf.reshape(inp_spike_current, [-1, 2, int(self.n_rec/2)])), axis=2)
-
+        pop_activity = (tf.reduce_sum(self.fi_filter(inp_spike_current[:, 0:int(self.n_rec/2)])) -
+                        tf.reduce_sum(self.fi_filter(inp_spike_current[:, int(self.n_rec/2):])))
+        # pop_activity = tf.reduce_sum(self.fi_filter(new_v))
         tan = tf.math.tanh(pop_activity)
         surprise_factor = self.eta1 * tan + self.eta2 * tan * tf.cast(pop_activity > self.theta, dtype=self.data_type)
-        surprise_factor = tf.repeat(surprise_factor, repeats=int(int(self.n_rec/2)))  # expand to dimension of n_rec
 
         # The input we need is only for the second population, zeroing inputs of first population to null their effect
         mask = tf.concat([tf.zeros([inputs.shape[0], int(inputs.shape[1]/2)]),
                           tf.ones([inputs.shape[0], int(inputs.shape[1]/2)])], axis=1)
-        masked_input = tf.identity(inputs) * mask
+        masked_input = tf.identity(inputs) * mask  # z^p_k in the equation
 
         # need to do outer product between inp_spike_curr and masked_input, consider using einsum bi,bk -> bik
         dw_ik = tf.einsum("bi,bk->ki", inp_spike_current, masked_input) * surprise_factor
@@ -353,6 +352,8 @@ class ILif_3flr(keras.layers.AbstractRNNCell):
         # TODO: note that dw_ik is non zero only in a specific row for Maze.self._low_freq_p = 0.0
 
         self.w_in.assign_add(dw_ik)
+
+        # TODO: clamp them to not change sign
 
         # return interesting properties
         new_state = new_v, new_i, new_z
@@ -390,9 +391,9 @@ class ILif_3flr(keras.layers.AbstractRNNCell):
         return new_v, new_i, new_z
 
     @staticmethod
-    def fi_filter(syn_curr):
-        return syn_curr
-
+    def fi_filter(x, data_type=tf.float32):
+        # return tf.math.tanh(x) * tf.cast(x > 0., dtype=data_type)
+        return x * tf.cast(x > 0., dtype=data_type)
 
 @tf.custom_gradient
 def SpikeFunction(v_scaled, dampening_factor):

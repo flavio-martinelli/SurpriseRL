@@ -15,10 +15,10 @@ from plot_utils import raster_plot, v_plot
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-tf.config.experimental_run_functions_eagerly(True)
+# tf.config.experimental_run_functions_eagerly(True)
 
 t_steps = 100
-epochs = 1
+epochs = 500
 
 # Initialize maze
 mz = Maze((4, 4))
@@ -44,12 +44,16 @@ mz.apply_transition()
 spk_obs = Maze.spk_train_to_tensor(mz.generate_spike_train(mz.current_pos))
 inputs = tf.concat([spk_obs, spk_wm], axis=-1)
 
-for e in tqdm(range(epochs), ):
+s_trace = []
+
+for e in tqdm(range(epochs)):
     spk_out, v_out, inp_spike_current, pop_activity, surprise_factor, dw_ik = rnn(inputs)
     mz.apply_transition()
-    spk_wm = spk_obs
+    spk_wm = spk_obs  # generate old position spike train again
     spk_obs = Maze.spk_train_to_tensor(mz.generate_spike_train(mz.current_pos))
     inputs = tf.concat([spk_obs, spk_wm], axis=-1)
+
+    s_trace.append(tf.squeeze(surprise_factor).numpy())
 
 f, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 15))
 v_plot(ax1, v_out[0], out_spikes=spk_out[0].numpy(), linewidth=1, color='b')
@@ -77,6 +81,16 @@ _, ax = plt.subplots(1, 1)
 plt.pcolor(cell.w_in.numpy())
 plt.gca().invert_yaxis()
 plt.colorbar()
+plt.show()
+
+_, ax = plt.subplots(1, 1)
+plt.pcolor(cell.w_in.numpy()-full_w_in)
+plt.gca().invert_yaxis()
+plt.colorbar()
+plt.show()
+
+_, ax = plt.subplots(1, 1)
+plt.plot(np.array(s_trace).mean(axis=1))
 plt.show()
 
 print('theend')
