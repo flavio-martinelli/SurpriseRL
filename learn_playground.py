@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from maze import Maze
 from neuron_models import ILif_3flr
+from utils import average_w_matrix
 from plot_utils import raster_plot, v_plot
 
 import os
@@ -18,15 +19,16 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 # tf.config.experimental_run_functions_eagerly(True)
 
 t_steps = 100
-epochs = 500
+epochs = 4500
+out_in_ratio = 2**4
 
 # Initialize maze
 mz = Maze((4, 4))
 t_mat = mz.build_transition_matrix(dims=2, symmetric=True)
-mz.set_spike_train_params(t_steps)
+mz.set_spike_train_params(t_steps, high_freq_p=0.9, low_freq_p=0.01)
 
 n_in = mz.tot_room_number
-n_pop = mz.tot_room_number*2
+n_pop = mz.tot_room_number*out_in_ratio
 dt = 1
 
 # Initialize network [two input sets of size n_in and two output populations of size n_pop]
@@ -45,6 +47,7 @@ spk_obs = Maze.spk_train_to_tensor(mz.generate_spike_train(mz.current_pos))
 inputs = tf.concat([spk_obs, spk_wm], axis=-1)
 
 s_trace = []
+f_trace = []
 
 for e in tqdm(range(epochs)):
     spk_out, v_out, inp_spike_current, pop_activity, surprise_factor, dw_ik = rnn(inputs)
@@ -54,6 +57,11 @@ for e in tqdm(range(epochs)):
     inputs = tf.concat([spk_obs, spk_wm], axis=-1)
 
     s_trace.append(tf.squeeze(surprise_factor).numpy())
+
+    learned_t_mat = average_w_matrix(cell.w_in.numpy(), out_in_ratio)
+    learned_t_mat = learned_t_mat[n_in:, n_in:]
+    f_trace.append(tf.norm(t_mat - learned_t_mat, ord='fro', axis=(0,1)).numpy())
+
 
 f, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 15))
 v_plot(ax1, v_out[0], out_spikes=spk_out[0].numpy(), linewidth=1, color='b')
@@ -84,13 +92,18 @@ plt.colorbar()
 plt.show()
 
 _, ax = plt.subplots(1, 1)
-plt.pcolor(cell.w_in.numpy()-full_w_in)
+plt.pcolor(learned_t_mat)
 plt.gca().invert_yaxis()
 plt.colorbar()
 plt.show()
 
 _, ax = plt.subplots(1, 1)
 plt.plot(np.array(s_trace).mean(axis=1))
+plt.show()
+
+_, ax = plt.subplots(1, 1)
+plt.plot(np.array(f_trace))
+plt.xscale('log')
 plt.show()
 
 print('theend')

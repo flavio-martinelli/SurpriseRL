@@ -99,25 +99,22 @@ class VLif(keras.layers.AbstractRNNCell):
         if self.track_v:  # returns also voltage trace tensor across the last dimension for compat with keras.model()
             # for better viz purposed when the neuron are firing a lot
             # return tf.stack([new_z, new_v_tmp], axis=-1), new_state
-
             return tf.stack([new_z, new_v], axis=-1), new_state
         else:
             return new_z, new_state
 
     def lif_dynamics(self, v, z, inp_spike_current):
 
-        with tf.name_scope('dynamics') as scope:
+        i_reset = z * self.thr * self.dt
 
-            i_reset = z * self.thr * self.dt
+        new_v_tmp = self._decay * v - i_reset
+        new_v = new_v_tmp + (1 - self._decay) * inp_spike_current
 
-            new_v_tmp = self._decay * v - i_reset
-            new_v = new_v_tmp + (1 - self._decay) * inp_spike_current
+        # Spike generation
+        v_scaled = (new_v - self.thr) / self.thr
 
-            # Spike generation
-            v_scaled = (new_v - self.thr) / self.thr
-
-            new_z = SpikeFunction(v_scaled, self.dampening_factor)
-            new_z = new_z * 1 / self.dt # ask guillaume about dt
+        new_z = SpikeFunction(v_scaled, self.dampening_factor)
+        new_z = new_z * 1 / self.dt
 
         return new_v, new_z, new_v_tmp
 
