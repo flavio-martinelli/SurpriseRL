@@ -16,16 +16,16 @@ from plot_utils import raster_plot, v_plot
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-# tf.config.experimental_run_functions_eagerly(True)
+tf.config.experimental_run_functions_eagerly(True)
 
 t_steps = 100
-epochs = 4500
-out_in_ratio = 2**4
+epochs = 3000
+out_in_ratio = 2**2
 
 # Initialize maze
 mz = Maze((4, 4))
 t_mat = mz.build_transition_matrix(dims=2, symmetric=True)
-mz.set_spike_train_params(t_steps, high_freq_p=0.9, low_freq_p=0.01)
+mz.set_spike_train_params(t_steps, high_freq_p=1.0, low_freq_p=0.0)
 
 n_in = mz.tot_room_number
 n_pop = mz.tot_room_number*out_in_ratio

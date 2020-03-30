@@ -4,7 +4,7 @@ import tensorflow as tf
 
 
 def average_w_matrix(w, factor):
-    """ Performs average operation on matrix rows of size factor, with stride factor"""
+    """ Performs average operation on matrix with kernel of size [1,'factor'] , with stride = 'factor' """
 
     w = tf.expand_dims(tf.constant(w), axis=0)
     w = tf.expand_dims(w, axis=-1)

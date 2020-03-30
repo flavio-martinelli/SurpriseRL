@@ -277,6 +277,7 @@ class ILif_3flr(keras.layers.AbstractRNNCell):
 
         self.thr = tf.Variable(thr, dtype=dtype, name="Threshold", trainable=False)
 
+
     def build(self, input_shape):
         """ input_shape is structured as: [batch_size, time_steps, #input neurons] """
 
@@ -288,6 +289,13 @@ class ILif_3flr(keras.layers.AbstractRNNCell):
         else:
             self.w_in = tf.Variable(self.w_in, dtype=self.data_type, trainable=self.train_w_in, name="InputWeight")
 
+        self._clip_mask_max = np.ones_like(self.w_in.numpy()) * np.infty
+        self._clip_mask_max[int(n_in/2):, :int(self.n_rec/2)] = 0.0
+        self._clip_mask_max = tf.constant(self._clip_mask_max, dtype=self.data_type)
+
+        self._clip_mask_min = -np.ones_like(self.w_in.numpy()) * np.infty
+        self._clip_mask_min[int(n_in/2):, int(self.n_rec/2):] = 0.0
+        self._clip_mask_min = tf.constant(self._clip_mask_min, dtype=self.data_type)
 
     @property
     def state_size(self):
@@ -332,16 +340,16 @@ class ILif_3flr(keras.layers.AbstractRNNCell):
         # Compute update
         # TODO: to be tested
         # TODO: check with Martin the specific update details
-        pop_activity = (tf.reduce_sum(self.fi_filter(inp_spike_current[:, 0:int(self.n_rec/2)])) -
-                        tf.reduce_sum(self.fi_filter(inp_spike_current[:, int(self.n_rec/2):])))
-        # pop_activity = tf.reduce_sum(self.fi_filter(new_v))
+        # pop_activity = (tf.reduce_sum(self.fi_filter(inp_spike_current[:, 0:int(self.n_rec/2)])) -
+        #                 tf.reduce_sum(self.fi_filter(inp_spike_current[:, int(self.n_rec/2):])))
+        pop_activity = tf.reduce_sum(self.fi_filter(new_v))
         tan = tf.math.tanh(pop_activity)
         surprise_factor = self.eta1 * tan + self.eta2 * tan * tf.cast(pop_activity > self.theta, dtype=self.data_type)
 
         # The input we need is only for the second population, zeroing inputs of first population to null their effect
         mask = tf.concat([tf.zeros([inputs.shape[0], int(inputs.shape[1]/2)]),
                           tf.ones([inputs.shape[0], int(inputs.shape[1]/2)])], axis=1)
-        masked_input = tf.identity(inputs) * mask  # z^p_k in the equation
+        masked_input = tf.identity(inputs) * mask  # z^p_k in the equation of cosyne abstract
 
         # need to do outer product between inp_spike_curr and masked_input, consider using einsum bi,bk -> bik
         dw_ik = tf.einsum("bi,bk->ki", inp_spike_current, masked_input) * surprise_factor
@@ -349,8 +357,7 @@ class ILif_3flr(keras.layers.AbstractRNNCell):
         # TODO: note that dw_ik is non zero only in a specific row for Maze.self._low_freq_p = 0.0
 
         self.w_in.assign_add(dw_ik)
-
-        # TODO: clamp them to not change sign
+        self.w_in.assign(tf.clip_by_value(self.w_in, self._clip_mask_min, self._clip_mask_max))
 
         # return interesting properties
         new_state = new_v, new_i, new_z
@@ -380,17 +387,28 @@ class ILif_3flr(keras.layers.AbstractRNNCell):
             new_v = self._decay_v * v + (1 - self._decay_v) * new_i - i_reset
 
             # Spike generation
-            new_z = tf.greater(new_v, self.thr)
-            new_z = tf.cast(new_z, dtype=tf.float32)
+            # new_z = tf.greater(new_v, self.thr)
+            # new_z = tf.cast(new_z, dtype=tf.float32)
+
+            new_z = self.stochastic_spike_function(new_v, tf.tanh)
 
             new_z = new_z * 1 / self.dt
 
         return new_v, new_i, new_z
 
+    def stochastic_spike_function(self, v, fun=tf.tanh):
+        """ Stochastic activation function of neuron based on a function of the voltage potential (e.g. fun = tf.tanh)
+        """
+        # Generate a random threshold for each neuron
+        thresholds = rd.uniform(0., 1., size=v.shape)
+
+        # Check if tanh(v) is above the generated threshold
+        return tf.cast(tf.greater(fun(v), thresholds), dtype=self.data_type)
+
     @staticmethod
     def fi_filter(x, data_type=tf.float32):
-        # return tf.math.tanh(x) * tf.cast(x > 0., dtype=data_type)
-        return x * tf.cast(x > 0., dtype=data_type)
+        return tf.math.tanh(x) * tf.cast(x > 0., dtype=data_type)
+        # return x * tf.cast(x > 0., dtype=data_type)
 
 @tf.custom_gradient
 def SpikeFunction(v_scaled, dampening_factor):
@@ -408,3 +426,4 @@ def SpikeFunction(v_scaled, dampening_factor):
                 tf.zeros_like(dampening_factor)]
 
     return tf.identity(z_, name="SpikeFunction"), grad
+

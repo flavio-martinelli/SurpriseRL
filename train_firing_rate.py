@@ -13,8 +13,6 @@ from plot_utils import raster_plot, v_plot
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
-print('hello LCN hello')
-
 n_epochs = 10
 batch_size = 100
 n_time = 250
@@ -82,23 +80,6 @@ def train(model, optimizer):
         step += 1
     return step, loss, mae
 
-################################## GRAPH BUILDING #######################################
-
-log_path = os.path.join(os.curdir,'tmp', 'mylogs')
-
-writer = tf.summary.create_file_writer(log_path)
-
-tf.summary.trace_on(graph=True, profiler=True)
-
-train_step(model, optimizer, inputs)
-
-with writer.as_default():
-    tf.summary.trace_export(
-      name="my_func_trace",
-      step=0,
-      profiler_outdir=os.path.join(log_path, 'profiler'))
-
-########################################################################################
 
 step, loss, mae = train(model, optimizer)
 
@@ -124,5 +105,3 @@ plt.show()
 ax = plt.subplot()
 raster_plot(ax, spk_out[0], linewidth=1)
 plt.show()
-
-print('hellou')
