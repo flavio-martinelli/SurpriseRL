@@ -1,13 +1,11 @@
 """
 Created by Flavio Martinelli at 11:27 26/02/2020
 """
-
-import numpy as np
 import matplotlib.pyplot as plt
 
 import tensorflow as tf
 import tensorflow.keras as keras
-from neuron_models import VLif
+from old_scripts.neuron_models_old import VLif
 from plot_utils import raster_plot, v_plot
 
 import os

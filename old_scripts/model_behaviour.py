@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import tensorflow.keras as keras
 
 # My imports
-from neuron_models import VLif, ILif
+from old_scripts.neuron_models_old import VLif, ILif, ILif3f
 from plot_utils import raster_plot, v_plot
 
 # set generic params
@@ -107,6 +107,29 @@ ax1.locator_params(axis='y', nbins=25)
 ax1.grid()
 plt.show()
 
+# nice plot
+
+
+# Different neuron type
+
+cell1 = ILif(n_rec=1, tau_v=10, dt=1,
+             w_in=[[5.0], [12.5], [10.5]],
+             w_rec=[[0.0]], thr=0.8,
+             track_v=True)
+
+rnn1 = keras.layers.RNN(cell1, return_sequences=True, return_state=False)
+spk_out, v_out = tf.unstack(rnn1(inputs), num=2, axis=-1)
+
+f, (ax1) = plt.subplots(1, 1, figsize=(10, 5))
+v_plot(ax1, v_out[0], out_spikes=None, linewidth=4, color='b')
+ax1.hlines(0.8, 0, 100, colors=(1, 0, 0, 0.25), linestyles='--', linewidth=2)
+#raster_plot(ax2, inputs[0], linewidth = 1)
+ax1.locator_params(axis='y', nbins=25)
+ax1.set_axis_off()
+ax1.set_xlim([0, 57])
+plt.show()
+
+
 # one EPSP plot
 
 inputs = np.zeros([1, time_steps, 1])
@@ -122,7 +145,30 @@ rnn = keras.layers.RNN(cell1, return_sequences=True, return_state=False)
 spk_out, v_out = tf.unstack(rnn(inputs), num=2, axis=-1)
 
 f, (ax1) = plt.subplots(1, 1, figsize=(8, 5))
-v_plot(ax1, v_out[0], out_spikes=spk_out[0], linewidth=1, color='b')
+v_plot(ax1, v_out[0], out_spikes=None, linewidth=1, color='b')
+ax1.locator_params(axis='y', nbins=25)
+plt.show()
+
+
+
+# one EPSP plot ILif3f
+
+n_inputs = 2
+
+inputs = np.zeros([1, time_steps, n_inputs])
+inputs[0, (10, 30), 0] = 1.0
+inputs[0, (40, 60), 1] = 1.0
+
+cell1 = ILif3f(n_rec=2, tau_v=10, thr=1, dt=1,
+             w_in=[[2.0, 1.0], [0.3, 3.0]],
+             track_vars=True)
+
+rnn = keras.layers.RNN(cell1, return_sequences=True, return_state=False)
+
+out = rnn(inputs)
+
+f, (ax1) = plt.subplots(1, 1, figsize=(8, 5))
+v_plot(ax1, out['state'].v[0], out_spikes=out['state'].z[0], linewidth=1, color='b')
 ax1.locator_params(axis='y', nbins=25)
 ax1.grid()
 plt.show()

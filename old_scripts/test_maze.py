@@ -1,6 +1,6 @@
 from unittest import TestCase
 import numpy as np
-from maze import Maze
+from old_scripts.maze import Maze
 
 
 class TestMaze(TestCase):

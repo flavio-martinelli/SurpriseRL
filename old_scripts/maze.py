@@ -29,6 +29,8 @@ class Maze:
 
         self.current_pos = self.get_random_position()
 
+        self.shuffler = np.arange(0, np.prod(size))
+
     def get_random_position(self):
         """ Generate a random position within the maze
 
@@ -72,6 +74,18 @@ class Maze:
 
         self._spike_train_set = True
 
+    def shuffle_maze(self):
+        rd.shuffle(self.shuffler)
+        idx = np.arange(np.prod(self.size[0]))
+        self.transition_matrix = self.transition_matrix[self.shuffler[idx], self.shuffler[idx]]
+        return self.transition_matrix
+
+    def switch_indices(self, position):
+        new_idx = self.shuffler[self._idx_to_1d(position)]
+        delta = np.zeros(np.prod(self.size))
+        delta[new_idx] = 1
+        return np.argwhere(np.reshape(delta, self.size, order='F') == 1)[0]
+
     def build_transition_matrix(self, dims=2, symmetric=True, no_duplicates=True):
         """ Generate list of possible moves and their corresponding operator to apply to the current cell position. Plus
             defines and returns the transition matrix of the maze
@@ -92,11 +106,15 @@ class Maze:
         for room_pos, _ in np.ndenumerate(np.zeros(self.size)):  # Loop through all rooms
             for step in self.move_dict.values():  # Loop through all possible moves and record landing room
                 next_room_pos = self.move(np.array(room_pos), step)
-                self.transition_matrix[self._idx_to_1d(next_room_pos), self._idx_to_1d(room_pos)] += 1
                 self.transition_matrix[self._idx_to_1d(room_pos), self._idx_to_1d(next_room_pos)] += 1
+                if self.move_symmetric:
+                    self.transition_matrix[self._idx_to_1d(next_room_pos), self._idx_to_1d(room_pos)] += 1
 
         # Normalize
-        self.transition_matrix /= 2*self.move_dims
+        if symmetric:
+            self.transition_matrix /= 2*self.move_dims
+        else:
+            self.transition_matrix /= self.move_dims
 
         return self.transition_matrix
 
@@ -153,7 +171,7 @@ class Maze:
         """
         step = self.move_dict[rd.randint(low=0, high=len(self.move_dict.keys()))]
         self.current_pos = self.move(self.current_pos, step)
-        return self.current_pos
+        return self.switch_indices(self.current_pos), step
 
     def move(self, init_room, step):
         return np.mod(init_room + step, self.size)
